@@ -22,11 +22,15 @@ recovery.module <- function(dat,at) {
   if (isInit(at)) {
     dat <- recovery.init(dat,at)
   }
+ # if (at > 2) {browser()}
   # Variables ---------------------------------------------------------------
   active    <- dat$attr$active
   status    <- dat$attr$status
   infTime   <- dat$attr$infTime
   recTime   <- dat$attr$recTime
+  cfrTime   <- dat$attr$cfrTime
+  sevTime   <- dat$attr$sevTime
+  icuTime   <- dat$attr$icuTime
   age       <- dat$attr$age
 
   modes     <- params$modes
@@ -40,13 +44,15 @@ recovery.module <- function(dat,at) {
   rec.rand            <- dat$control$rec.rand
   rec.rate            <- params$rec_prob
   
-  recSus.rate         <- params$recSus.rate           #rates for vaning of imunity and subsequent 
-  #fall back in the sus-Compartment
+  # recSus.rate         <- params$recSus.rate           #rates for vaning of imunity and subsequent 
+  # #fall back in the sus-Compartment
   
 
   recInfSus.rate      <- params$recInfSus.rate
   
-  idsEligRec <- Reduce(intersect, list(which(active == 1), which(status == 'i')))
+  idsEligRec <- Reduce(intersect, list(which(active == 1), which(status == 'i'), 
+                                       which(is.na(sevTime))))
+  
   
   ################################################################################################
   # Recovered people getting suseptible again depending on the duration of their time in the 
@@ -68,42 +74,49 @@ recovery.module <- function(dat,at) {
     }
 
   # Infected people recovering again depending on the duration of their time in the 
-  # infected Compartiment 
-  
+  # infected Compartiment
+
   if (length(idsEligRec) > 0) {
     infDur <- ((at - infTime[idsEligRec]))
     
-    rec_room <- seq(1,100,1)
+    rec_room <- seq(1,400,1)
     nor_dens <- dnorm(rec_room,14,5)
     recProb <- nor_dens[infDur]
+    
+    recProb_2 <- pnorm(c(1:40), mean = 20, sd = 7)
+    recProb_3 <- 0.07 # stay in hospital approximately 20 days, dummmy value
   
-    vecRec <- idsEligRec[which(rbinom(length(idsEligRec), 1, recProb) == 1)]
-    vecRecRec <- vecRec[which(rbinom(length(vecRec), 1, immun_ratio) == 1)]
-    vecRecSus <- vecRec[vecRec %!in% vecRecRec]
+    vecRec <- idsEligRec[which(rbinom(length(idsEligRec), 1, recProb_3) == 1)]
     
-    if (length(vecRecRec) > 0) {
-      dat$attr$status[vecRecRec] <- "r"
-      dat$attr$infTime[vecRecRec] <- NA
-      dat$attr$recTime[vecRecRec] <- at
-      nRecRec   <- length(vecRecRec)
-    }else{
-      nRecRec <- 0
-    }
+    NormRec <- recover_this(dat, at, vecRec, params$immun_ratio)
+    #nRecRec <- 0
     
-   
-    if (length(vecRecSus) > 0) {
-      dat$attr$status[vecRecSus] <- "s"
-      dat$attr$infTime[vecRecSus] <- NA
-      dat$attr$recTime[vecRecSus] <- NA
-      nRecSus   <- length(vecRecSus)
-    }else{
-      nRecSus <- 0
-    }
-  }else{
-    nRecRec <- 0
-    nRecSus <- 0
   }
+  # Recovery for severely ill patients
+  idsEligRecSev <- Reduce(intersect, list(which(active == 1), which(status == 'i'), 
+                                       which(!is.na(sevTime)), which(is.na(icuTime)), 
+                                       which(sevTime <= at)))
+  
+  if (length(idsEligRecSev) > 0) {
+    vecRecSev <- idsEligRecSev[which(rbinom(length(idsEligRecSev), 1, 0.091) == 1)]
+  
+    SevRec <- recover_this(dat, at, vecRecSev, params$immun_ratio)
     
+  }
+  # # Recovery for icu patients
+   idsEligRecIcu <- Reduce(intersect, list(which(active == 1), which(status == 'i'), 
+                                           which(!is.na(sevTime)), which(!is.na(icuTime)), 
+                                           which(is.na(cfrTime)), which(icuTime <= at)))
+  
+  if (length(idsEligRecIcu) > 0) {
+    vecRecIcu <- idsEligRecIcu[which(rbinom(length(idsEligRecIcu), 1, 0.091) == 1)]
+
+   icuRec <- recover_this(dat, at, vecRecIcu, params$immun_ratio)
+  }
+
+
+    
+  
   
   ################################################################################################
  #   if (at == 20 ) { browser}
@@ -111,24 +124,16 @@ recovery.module <- function(dat,at) {
   if ("status" %in% dat$temp$fterms) {
     dat$nw <- set.vertex.attribute(dat$nw, "status", dat$attr$status)
   }
-  
+  return(dat)
   # Output ------------------------------------------------------------------
   if (at == 2) {
-    dat$epi$rs.flow         <- c(0, nSusRec)
-    dat$epi$ir.flow         <- c(0, nRecRec)
-    dat$epi$is.flow         <- c(0, nRecSus)
-
-    dat$epi$r.num           <- c(0, params$r_num_init) 
-    dat$epi$i.num           <- c(0, params$i_num_init) 
-    dat$epi$s.num           <- c(0, susIdx(dat)) 
+    dat$epi$rs.flow         <- c(0, NormRec$nSusRec)
+    dat$epi$ir.flow         <- c(0, NormRec$nRecRec)
+    dat$epi$is.flow         <- c(0, NormRec$nRecSus)
   } else {
-    dat$epi$rs.flow[at]     <- nSusRec
-    dat$epi$ir.flow[at]     <- nRecRec
-    dat$epi$is.flow[at]     <- nRecSus
-    
-    dat$epi$r.num[at]       <- length(activeRecIdx)
-    dat$epi$i.num[at]       <- length(activeInfIdx)
-    dat$epi$s.num[at]       <- length(activeSusIdx)
+    dat$epi$rs.flow[at]     <- NormRec$nSusRec
+    dat$epi$ir.flow[at]     <- NormRec$nRecRec
+    dat$epi$is.flow[at]     <- NormRec$nRecSus
   }
 
   return(dat)

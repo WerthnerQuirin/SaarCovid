@@ -12,13 +12,14 @@ infection.module <- function(dat, at) {
     modes <- dat$param$modes
 
     inf.prob <- params$inf_prob
-    act.rate <- params$act_rate
+    act.rate <- params$act_rate_1
 
     nw <- dat$nw
     tea.status <- dat$control$tea.status
 
     # Vector of infected and susceptible IDs
     idsInf <- activeInfIdx(dat)
+    idsSus <- activeInfIdx(dat)
     nActive <- countActive(dat)
     nElig <- length(idsInf)
 
@@ -46,21 +47,7 @@ infection.module <- function(dat, at) {
           del$transProb <- ifelse(del$infDur <= linf.prob,
                                   inf.prob[del$infDur],
                                   inf.prob[linf.prob])
-        # } else {
-        #   del$transProb <- ifelse(del$sus <= nw %n% "bipartite",
-        #                           ifelse(del$infDur <= linf.prob,
-        #                                  inf.prob[del$infDur],
-        #                                  inf.prob[linf.prob]),
-        #                           ifelse(del$infDur <= linf.prob,
-        #                                  inf.prob.m2[del$infDur],
-        #                                  inf.prob.m2[linf.prob]))
-        # }
-
-        # Interventions
-        # if (!is.null(dat$param$inter.eff) && at >= dat$param$inter.start) {
-        #   del$transProb <- del$transProb * (1 - dat$param$inter.eff)
-        # }
-
+       
         # Calculate infection-stage act/contact rates
         lact.rate <- length(act.rate)
         del$actRate <- ifelse(del$infDur <= lact.rate,
@@ -104,7 +91,7 @@ infection.module <- function(dat, at) {
                                             v = idsNewInf)
           }
           dat$attr$status[idsNewInf] <- "e"
-          dat$attr$infTime[idsNewInf] <- at
+          dat$attr$expTime[idsNewInf] <- at
 
           nodoublesus <- distinct(del, del$sus, .keep_all = TRUE)
           dat$attr$vac[idsNewInf] <- nodoublesus$vac
@@ -138,11 +125,15 @@ infection.module <- function(dat, at) {
    ## Save incidence vector
    if (at == 2) {
     dat$epi$se.flow           <- c(0, nInf)
+    #dat$epi$s.num           <- c(params$s_num_init, length(susIdx(dat)))
+    dat$epi$e.num           <- c(params$e_num_init, length(expIdx(dat)))
+    dat$epi$i.num           <- c(params$i_num_init, length(infIdx(dat)))
 
    } else {
     dat$epi$se.flow[at]     <- nInf
-    dat$epi$s.num[at]       <- length(activeSusIdx(dat))
+    #dat$epi$s.num[at]       <- length(activeSusIdx(dat))
     dat$epi$e.num[at]       <- length(activeExpIdx(dat))
+    dat$epi$i.num[at]       <- length(activeInfIdx(dat))
 
    }
 

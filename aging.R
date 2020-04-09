@@ -4,7 +4,7 @@ suppressPackageStartupMessages(library(dplyr))
 
 aging.init <- function(dat){
   
-  age <- get.vertex.attribute(dat$nw, "age")
+  # age <- get.vertex.attribute(dat$nw, "age")
   dat$attr$age <- init_age_dist
   
   # init statistics
@@ -19,9 +19,11 @@ aging.module <- function(dat, at) {
    dat$epi$medianAge <- c(0, median(dat$attr$age[which(dat$attr$active == 1)]))
   }
   else { 
-    active.idxs <- activeIdx(dat)
-    dat$attr$age[active.idxs] <- dat$attr$age[active.idxs] + aging.props$inc
-
+    if (at == 365) {
+      active.idxs <- activeIdx(dat)
+      dat$attr$age[active.idxs] <- dat$attr$age[active.idxs] + aging.props$inc
+    }
+      
     # statistics
     dat$epi$meanAge[at] <- mean(dat$attr$age[which(dat$attr$active == 1)])
     dat$epi$medianAge[at] <- median(dat$attr$age[which(dat$attr$active == 1)])

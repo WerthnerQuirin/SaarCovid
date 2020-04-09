@@ -1,4 +1,6 @@
 suppressPackageStartupMessages(library(doParallel))
+suppressPackageStartupMessages(library(tibble))
+suppressPackageStartupMessages(library(tidyverse))
 
 netsimPar <- function(x, param, init, control, sources) 
 { 
