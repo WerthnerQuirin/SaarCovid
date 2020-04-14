@@ -63,7 +63,7 @@ initialize.module <- function(x, param, init, control, s) {
     browser()
     # Convert to tergmLite method
     dat <- init_tergmLite(dat)
-    
+    browser()
     # ## Pull network val to attr
     # form <- get_nwparam(dat)$formation
     # fterms <- get_formula_term_attr(form, nw)

@@ -139,7 +139,7 @@ edges <- mean_degree_2*length(nw$val)
 match_2 <- edges*0.7
  
 formation_2 <- ~edges #+ nodematch("occupation")
-target_stats_2 <- c(edges)#, match_2)
+target_stats_2 <- c(match_2)#, match_2)
  
 coef_diss_2 <- dissolution_coefs(dissolution = ~offset(edges),
                                 duration = params$duration_2
@@ -151,6 +151,17 @@ est_2 <- netest(nw, formation_2, target_stats_2, coef_diss_2,
 # 
 # dx_2 <- netdx(est_2, nsims = params$nsims, nsteps = params$nsteps, dynamic = FALSE, 
 #            keep.tedgelist = TRUE, nwstats.formula = ~edges, )
+
+init <- init.net(  e.num = params$e_num_init,
+                   i.num = params$i_num_init,
+                   r.num = params$r_num_init,
+                   sc.num = params$sc_num_init
+                   #c.num = param_sum$initial_cancer,
+                   #c.num.m2 = param_sum$initial_cancer_m2
+                   #v.num = 0,      #v.num and v.num.m2 are set to 0 at init, because it is handled by vaccination.init
+                   #v.num.m2 = 0
+                   
+)
 
 param <- param.net(inf.prob = params$inf_prob, 
                    a.rate = params$a.rate,    
